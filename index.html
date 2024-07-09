@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cines</title>
+
+    <style>
+        body {
+            background-color: #25475b;
+            font-family: "Open Sans", sans-serif;
+            font-optical-sizing: auto;
+        }
+
+        header img {
+            width: 80px;
+        }
+
+        header {
+            display: flex;
+            justify-content: center;
+        }
+
+        p {
+            color: white;
+            font-weight: 100;
+        }
+
+        .funcion {
+            background-color: white;
+            padding: 20px;
+            border-radius: 20px;
+            margin: 20px 0;
+            width: 170px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .funcion p {
+            color: black;
+        }
+
+        .pelicula {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .peliculas {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            padding: auto;
+            justify-items: center;
+        }
+
+        .peliculas img {
+            width: 210px;
+            border-width: 2px;
+            border-style: solid;
+            border-color: white;
+        }
+
+        button {
+            font-family: "Open Sans", sans-serif;
+            background-color: #346480; /* Color de fondo */
+            color: #ffffff; /* Color del texto (blanco en este caso) */
+            border: none; /* Sin borde */
+            padding: 10px 20px; /* Espaciado interno (ajústalo según tus necesidades) */
+            border-radius: 5px; /* Bordes redondeados */
+            cursor: pointer; /* Cambia el cursor al pasar por encima */
+        }
+
+        button:hover {
+            background-color: #1c3644;
+        }
+
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .peliculas {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .peliculas {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .asientos {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            justify-items: center;
+            align-items: center;
+            width: max-content;
+        }
+
+        .screen {
+            width: 80%;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #e2dcf4;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .asiento {
+            width: fit-content;
+            height: fit-content;
+            line-height: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .asiento-leyenda {
+            font-size: 50px;
+            background-color: #ffffff;
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        .asiento-leyenda.selected {
+            background-color: #60ed8a;
+        }
+
+        .asiento-leyenda.occupied {
+            background-color: #ff6b6b;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .legend div {
+            display: flex;
+            align-items: center;
+            margin: 0 10px;
+        }
+
+        .boton-transparente {
+            background-color: transparent;
+            height: auto;
+            padding: 0;
+            border: none;
+            line-height: 0;
+        }
+
+        .fondo-asientos {
+            background-color: #160f2b;
+            border-radius: 25px;
+            padding: 20px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .texto-leyenda {
+            color: #ffffff;
+        }
+
+        h1 {
+            color: #ffffff;
+        }
+    </style>
+</head>
+
+<body onload="mostrarPeliculas()">
+    <header>
+        <img src="img/cinexunidos.png" alt="logo">
+    </header>
+    <hr>
+    <div class="inicioTaller">
+        <div class="peliculas"></div>
+        <div class="funciones"></div>
+        <div class="fondo-asientos" style="display: none;" id="seccionAsientos">
+            <h1>Selección de puestos</h1>
+            <div class="asientos" id="displayAsientos"></div>
+            <div class="screen">Pantalla</div>
+            <div class="legend">
+                <div>
+                    <div class="asiento-leyenda"></div>
+                    <span class="texto-leyenda">Disponible</span>
+                </div>
+                <div>
+                    <div class="asiento-leyenda selected"></div>
+                    <span class="texto-leyenda">Seleccionado</span>
+                </div>
+                <div>
+                    <div class="asiento-leyenda occupied"></div>
+                    <span class="texto-leyenda">Ocupado</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const url = 'https://cinexunidos-production.up.railway.app';
+        const peliculasMostradas = new Set();
+        let butacasReservadas = [];
+        let eventSource;
+        let cine;
+        let sala;
+        let funcion;
+
+        function mostrarSeccion(seccion) {
+            const currentDisplayedSection = document.querySelector('.visible');
+            if (currentDisplayedSection) {
+                currentDisplayedSection.classList.remove('visible');
+            }
+            seccion.classList.add('visible');
+        }
+
+        function elegirAsientos(_cine, _sala, _funcion) {
+            const seccionPeliculas = document.querySelector('.peliculas');
+            const seccionAsientos = document.querySelector('#seccionAsientos');
+            seccionPeliculas.style.display = 'none';
+            seccionAsientos.style.display = 'flex';
+
+            cine = _cine;
+            sala = _sala;
+            funcion = _funcion;
+
+            configurar();
+        }
+
+        function mostrarFunciones(nombrePelicula) {
+            const peliculasContainer = document.querySelector('.peliculas');
+            peliculasContainer.innerHTML = '';
+
+            fetch(url + '/theatres')
+                .then(response => response.json())
+                .then(cines => {
+                    cines.forEach(cine => {
+                        cine.auditoriums.forEach(auditorio => {
+                            auditorio.showtimes.forEach(funcion => {
+                                if (funcion.movie.name === nombrePelicula) {
+                                    const funcionDiv = document.createElement('div');
+                                    funcionDiv.classList.add('funcion');
+                                    funcionDiv.innerHTML = `
+                                        <p>Cine: ${cine.name}</p>
+                                        <p>Auditorio: ${auditorio.name}</p>
+                                        <p>Hora: ${funcion.startTime}</p>
+                                        <div class="botones">
+                                            <button onclick="elegirAsientos('${cine.id}', '${auditorio.id}', '${funcion.id}')">Elegir asientos</button>
+                                        </div>
+                                    `;
+                                    peliculasContainer.appendChild(funcionDiv);
+                                }
+                            });
+                        });
+                    });
+                });
+        }
+
+        function mostrarPeliculas() {
+            const peliculasContainer = document.querySelector('.peliculas');
+            peliculasContainer.innerHTML = '';
+
+            fetch(url + '/theatres')
+                .then(response => response.json())
+                .then(cines => {
+                    cines.forEach(cine => {
+                        cine.auditoriums.forEach(auditorio => {
+                            auditorio.showtimes.forEach(funcion => {
+                                const posterPelicula = url+'/'+funcion.movie.poster;
+                                const nombrePelicula = funcion.movie.name;
+                                if (!peliculasMostradas.has(nombrePelicula)) {
+                                    peliculasMostradas.add(nombrePelicula);
+                                    const peliculaDiv = document.createElement('div');
+                                    peliculaDiv.classList.add('pelicula');
+                                    peliculaDiv.innerHTML = `
+                                        <img src="${posterPelicula}" alt="${posterPelicula}">
+                                        <p>${nombrePelicula}</p>
+                                        <div class="botones">
+                                            <button onclick="mostrarFunciones('${nombrePelicula}')">Ver funciones</button>
+                                        </div>
+                                    `;
+                                    peliculasContainer.appendChild(peliculaDiv);
+                                }
+                            });
+                        });
+                    });
+                });
+        }
+
+        function configurar() {
+            colocarFilaAsientos();
+            eventSource = new EventSource("https://cinexunidos-production.up.railway.app/theatres/"+ cine + "/auditoriums/" + sala + "/showtimes/" + funcion + "/reservation-updates")
+            eventSource.onmessage = mensajesButacas;
+        }
+
+        function mensajesButacas(event) {
+            const eventData = JSON.parse(event.data);
+
+            console.log(eventData);
+
+            if (eventData.theatreId === cine && eventData.auditoriumId === sala && eventData.showtimeId === funcion && !(butacasReservadas.includes(eventData.seat))) {
+                switch (eventData.result) {
+                    case 'SEAT_RESERVED':
+                        setOcupado(eventData.seat);
+                        break;
+                    case 'SEAT_RELEASED':
+                        setDisponible(eventData.seat);
+                        break;
+                }
+            }
+        }
+
+        async function getButacas(idCine, idSala, idFuncion){
+            const respuesta = await fetch("https://cinexunidos-production.up.railway.app/theatres/" + idCine + "/auditoriums/" + idSala + "/showtimes/" + idFuncion);
+            const butacas = await respuesta.json();
+            return butacas.seats;
+        }
+
+        async function reservarButaca(idCine, idSala, idFuncion, idButaca) {
+            const respuesta = await fetch("https://cinexunidos-production.up.railway.app/theatres/" + idCine + "/auditoriums/" + idSala + "/showtimes/" + idFuncion + "/reserve", {
+                method: "POST",
+                body: `{
+                    "seat": "${idButaca}"
+                }`,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+            });
+            return respuesta;
+        }
+
+        async function borrarReservaButaca(idCine, idSala, idFuncion, idButaca) {
+            const respuesta = await fetch("https://cinexunidos-production.up.railway.app/theatres/" + idCine + "/auditoriums/" + idSala + "/showtimes/" + idFuncion + "/reserve", {
+                method: "DELETE",
+                body: `{
+                    "seat": "${idButaca}"
+                }`,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+            });
+            return respuesta;
+        }
+
+        async function colocarFilaAsientos(){
+            const filas = 15;
+            const columnas = 15;
+            const butacas = await getButacas(cine, sala, funcion);
+            let numFila = 1;
+            for (let fila in butacas) {
+                const butacasFila = butacas[fila];
+                for (let columna = 0; columna < butacasFila.length; columna++) {
+                    const estadoAsiento = butacasFila[columna];
+
+                    let imagenAsiento = "img/disponible.png";
+                    let imgAlt = "disponible";
+
+                    if(estadoAsiento === 1 || estadoAsiento === 2) {
+                        imagenAsiento = "img/ocupado.png";
+                        imgAlt = "ocupado"
+                    }
+
+                    if(estadoAsiento >= 0) {
+                        const divElement = document.createElement("div");
+                        divElement.className = "asiento";
+                        divElement.id = `${fila}${columna}`;
+                        divElement.style = `grid-column: ${columna};grid-row: ${numFila}`;
+                        divElement.innerHTML = `<button class="boton-transparente" onclick="reservar('${fila}', '${columna}')">
+                            <img src="${imagenAsiento}" alt="Asiento ${imgAlt}" width="40" height="40" id="img${fila}${columna}">
+                        </button>`
+                        displayAsientos.appendChild(divElement);
+                    }
+                }
+                numFila++;
+            }
+        }
+
+        function setOcupado(id) {
+            const img = document.getElementById('img' + id);
+            img.src = "img/ocupado.png";
+            img.alt = "Asiento ocupado";
+        }
+
+        function setDisponible(id) {
+            const img = document.getElementById('img' + id);
+            img.src = "img/disponible.png";
+            img.alt = "Asiento disponible";
+        }
+
+        function setSeleccionado(id) {
+            const img = document.getElementById('img' + id);
+            img.src = "img/seleccionado.png";
+            img.alt = "Asiento seleccionado";
+        }
+
+        async function reservar(fila, columna) {
+            const idButaca = `${fila}${columna}`;
+            if (butacasReservadas.includes(idButaca)) {
+                const respuesta = await borrarReservaButaca(cine, sala, funcion, idButaca);
+                if (respuesta.ok) {
+                    butacasReservadas.splice(butacasReservadas.indexOf(idButaca), 1);
+                    setDisponible(idButaca);
+                }
+            } else {
+                const respuesta = await reservarButaca(cine, sala, funcion, idButaca);
+                if (respuesta.ok) {
+                    setSeleccionado(idButaca);
+                    butacasReservadas.push(idButaca);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
